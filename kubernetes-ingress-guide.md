@@ -12,8 +12,9 @@ A comprehensive guide to understanding ingress in Kubernetes, starting from foun
 4. [Ingress Controllers Deep Dive](#4-ingress-controllers-deep-dive)
 5. [AWS Load Balancers Explained](#5-aws-load-balancers-explained)
 6. [Common EKS Ingress Patterns](#6-common-eks-ingress-patterns)
-7. [Enterprise EKS Architecture](#7-enterprise-eks-architecture-final-example)
-8. [Summary](#8-summary)
+7. [ALB Native URL Rewriting (October 2025)](#7-alb-native-url-rewriting-october-2025)
+8. [Enterprise EKS Architecture](#8-enterprise-eks-architecture-final-example)
+9. [Summary](#9-summary)
 
 ---
 
@@ -557,9 +558,122 @@ Now let's put everything together into a full enterprise architecture.
 
 ---
 
-## 7. Enterprise EKS Architecture (Final Example)
+## 7. ALB Native URL Rewriting (October 2025)
 
-### 7.1 The Requirements
+### 7.1 The Problem
+
+For years, one of the main reasons people ran nginx behind ALB on EKS was URL rewriting. ALB could route based on paths, but it couldn't modify the URL before forwarding to the backend.
+
+For example, if your app expects to be served at `/` but you want it accessible under `example.com/myapp`, something needs to strip the `/myapp` prefix before the request hits the container. With nginx, this was one annotation:
+
+```yaml
+nginx.ingress.kubernetes.io/rewrite-target: /
+```
+
+With ALB, this was impossible. The common workarounds were:
+1. Give each service its own subdomain — doesn't scale, needs DNS records and certs per service
+2. Hardcode the subpath into the container — couples deployment topology to application code
+3. Deploy nginx behind ALB — ALB handles TLS, nginx handles the rewrite
+
+Most people went with option 3, leading to this standard EKS pattern:
+
+```
+Internet → ALB (TLS + routing) → nginx (URL rewrite) → Service → Pods
+```
+
+Two hops. Two things to configure. Two things that can break.
+
+### 7.2 The Update
+
+On **October 15, 2025**, AWS announced native URL and host header rewriting for ALB. The feature uses regex-based pattern matching and is configured through listener rule transforms.
+
+The AWS Load Balancer Controller for Kubernetes picked this up via the `transforms` annotation. Here's what the setup looks like now — one Ingress resource, no nginx:
+
+```yaml
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: my-app
+  annotations:
+    alb.ingress.kubernetes.io/scheme: internet-facing
+    alb.ingress.kubernetes.io/target-type: ip
+    alb.ingress.kubernetes.io/certificate-arn: arn:aws:acm:eu-west-1:123456789:certificate/abc-123
+    alb.ingress.kubernetes.io/transforms.my-service: |
+      [
+        {
+          "type": "url-rewrite",
+          "urlRewriteConfig": {
+            "rewrites": [{
+              "regex": "^/myapp/?(.*)",
+              "replace": "/$1"
+            }]
+          }
+        }
+      ]
+spec:
+  ingressClassName: alb
+  rules:
+  - host: example.com
+    http:
+      paths:
+      - path: /myapp
+        pathType: Prefix
+        backend:
+          service:
+            name: my-service
+            port:
+              number: 80
+```
+
+The `transforms` annotation takes a JSON array of transform rules. The regex strips the `/myapp` prefix and ensures a leading slash. The annotation key includes the service name (`transforms.my-service`) so you can have different rewrites for different backends on the same Ingress.
+
+### 7.3 Before and After
+
+```
+Before:  Internet → ALB (TLS + routing) → nginx (URL rewrite) → Service → Pods
+After:   Internet → ALB (TLS + routing + rewrite) → Service → Pods
+```
+
+What you can remove:
+- The nginx ingress controller Helm chart / deployment / service
+- The ALB-to-nginx Ingress resource
+- The nginx Ingress resource
+- All RBAC for nginx
+
+What you keep:
+- One ALB Ingress resource with the `transforms` annotation
+
+### 7.4 Ingress NGINX Retirement
+
+The timing of this feature is significant. In November 2025, the Kubernetes SIG Network and Security Response Committee announced that the **community Ingress NGINX controller is retiring on March 31, 2026**. After that date: no releases, no bugfixes, no security patches.
+
+> **Important:** This is specifically about the community-maintained Kubernetes Ingress NGINX controller — not NGINX the web server (that's fine) and not the commercial NGINX Ingress Controller from F5 (that's a separate product).
+
+The recommended migration path is to the **Kubernetes Gateway API**, which is the successor to the Ingress API. But if your main reason for running nginx on EKS was URL rewriting behind ALB, you can skip that entirely and go ALB-native.
+
+### 7.5 Things to Watch Out For
+
+- **Per-service annotation:** The annotation key includes the backend service name: `alb.ingress.kubernetes.io/transforms.<service-name>`. Different backends can have different rewrite rules.
+- **Controller version:** Requires AWS Load Balancer Controller **v2.12+**.
+- **Regex syntax:** Uses standard regex. Test your patterns — `^/myapp/?(.*)`→`/$1` handles `/myapp`, `/myapp/`, and `/myapp/anything/else`.
+- **EKS Auto Mode:** If you're on EKS Auto Mode, transforms work slightly differently through the built-in ingress handling rather than the standalone controller. Check the AWS documentation for specifics.
+
+### 7.6 When You Still Need nginx (or an Alternative)
+
+ALB URL rewriting doesn't eliminate all use cases for an in-cluster reverse proxy:
+
+- **TCP/UDP traffic** — ALB is HTTP/HTTPS only. You still need NLB + a TCP proxy for non-HTTP protocols.
+- **Advanced traffic manipulation** — complex header rewrites, request body modifications, Lua scripting.
+- **Canary deployments with fine-grained control** — weighted routing based on custom logic.
+- **Non-AWS portability** — if you need to run the same setup on other clouds or on-prem.
+
+For these cases, consider migrating from Ingress NGINX to the Kubernetes Gateway API with a compatible controller (Envoy Gateway, Traefik, etc.) before the March 2026 retirement.
+
+---
+
+## 8. Enterprise EKS Architecture (Final Example)
+
+### 8.1 The Requirements
 
 An enterprise application on AWS EKS that needs:
 
@@ -569,7 +683,7 @@ An enterprise application on AWS EKS that needs:
 - **Defense in depth** — multiple security layers
 - Worker nodes must not be directly exposed
 
-### 7.2 Architecture Overview
+### 8.2 Architecture Overview
 
 ```
                           Internet
@@ -610,7 +724,7 @@ An enterprise application on AWS EKS that needs:
                                   └─────────────────┘
 ```
 
-### 7.3 VPC Subnet Layout
+### 8.3 VPC Subnet Layout
 
 ```
 VPC (10.0.0.0/16)
@@ -631,7 +745,7 @@ VPC (10.0.0.0/16)
 
 All traffic from the internet passes through the firewall subnet before reaching the load balancers. Worker nodes are in private subnets with no direct internet access.
 
-### 7.4 Layer-by-Layer Breakdown
+### 8.4 Layer-by-Layer Breakdown
 
 #### Layer 1: AWS Network Firewall (VPC Edge)
 
@@ -750,7 +864,7 @@ spec:
 
 This ensures that even if an attacker gets inside the cluster, lateral movement is restricted. The API pods only accept traffic from frontend pods.
 
-### 7.5 Defense in Depth Summary
+### 8.5 Defense in Depth Summary
 
 Traffic passes through multiple security layers before reaching your application:
 
@@ -765,7 +879,7 @@ Internet
 
 Each layer catches what the previous one doesn't. No single layer is sufficient on its own.
 
-### 7.6 What to Avoid
+### 8.6 What to Avoid
 
 | Avoid | Why |
 |---|---|
@@ -778,7 +892,7 @@ Each layer catches what the previous one doesn't. No single layer is sufficient 
 
 ---
 
-## 8. Summary
+## 9. Summary
 
 ### Component Reference Table
 
@@ -801,5 +915,14 @@ Each layer catches what the previous one doesn't. No single layer is sufficient 
 2. **You can run multiple ingress controllers** in the same cluster, each handling different Ingress resources via `ingressClassName`.
 3. **ALB for HTTP/S, NLB for TCP.** They solve different problems and often coexist.
 4. **Group ALB ingresses** with `group.name` to avoid one ALB per service.
-5. **Defense in depth** — Network Firewall, WAF, security groups, and network policies each catch different threats.
-6. **Keep worker nodes private.** Load balancers in public subnets, everything else in private subnets.
+5. **ALB now supports native URL rewriting** (October 2025) — the last major reason to run nginx behind ALB is gone. Use the `transforms` annotation with AWS LB Controller v2.12+.
+6. **Ingress NGINX is retiring March 31, 2026.** Migrate to ALB-native rewrites or the Kubernetes Gateway API.
+7. **Defense in depth** — Network Firewall, WAF, security groups, and network policies each catch different threats.
+8. **Keep worker nodes private.** Load balancers in public subnets, everything else in private subnets.
+
+---
+
+## References
+
+- [Introducing URL and host header rewrite with AWS Application Load Balancers](https://aws.amazon.com/blogs/networking-and-content-delivery/introducing-url-and-host-header-rewrite-with-aws-application-load-balancers/) — AWS Blog, October 15, 2025
+- [Ingress NGINX Retirement Announcement](https://www.kubernetes.dev/blog/2025/11/12/ingress-nginx-retirement/) — Kubernetes Blog, November 12, 2025
