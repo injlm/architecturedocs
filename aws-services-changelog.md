@@ -7,501 +7,241 @@
 
 ## How to Read This
 
-- Organized by year, then by service tier
-- Each entry is a notable change — not every minor update, but things that affect how you architect or operate
+- Organized by service tier, then by service
+- Each entry includes the year in parentheses
 - 🆕 = New capability | 🔄 = Behavior change | ⚠️ = Deprecation or breaking change | 💰 = Pricing change
 
 ---
 
-## Tier 1 — Foundation (IAM, VPC, S3, CloudWatch, EC2, Route 53/ELB)
+## Tier 1 — Foundation
 
-### 2021 (Baseline Year)
+### IAM
 
-**IAM**
-- 🆕 IAM Access Analyzer adds policy generation from CloudTrail activity
-- 🆕 Service control policies (SCPs) support new condition keys for tagging
+- 🆕 Access Analyzer generates policies from CloudTrail activity (2021)
+- 🆕 IAM Roles Anywhere — temporary credentials for on-premises workloads via X.509 certificates (2022)
+- 🆕 IAM Identity Center (rebranded from AWS SSO) (2022)
+- 🆕 Access Analyzer detects unused permissions (2023)
+- 🔄 Root user sessions centrally managed from org management account (2023)
+- 🆕 Resource control policies (RCPs) — SCPs but for resources (2024)
+- 🆕 Declarative policies for org-wide baseline enforcement (2024)
+- 🔄 Access Analyzer recommendations integrated into console policy editor (2025)
 
-**VPC**
-- 🆕 VPC IPAM (IP Address Manager) — centralized IP address planning across accounts
-- 🆕 Network Access Analyzer — verify network segmentation intent
-- 🔄 Security group rules now support descriptive rule IDs
+### VPC
 
-**S3**
-- 🔄 S3 Object Ownership — bucket owner can now enforce ownership of all objects (disabling ACLs)
-- 🆕 S3 Intelligent-Tiering adds Archive Access and Deep Archive tiers
-- 🆕 S3 Multi-Region Access Points — single global endpoint across regions
-- 💰 No more charge for S3 GET requests on Intelligent-Tiering when objects move tiers
+- 🆕 VPC IPAM — centralized IP address management across accounts (2021)
+- 🆕 Network Access Analyzer — verify network segmentation (2021)
+- 🆕 VPC Lattice (preview) — application-layer networking across VPCs (2022)
+- 🆕 Verified Access — zero-trust app access without VPN (2022)
+- 🔄 Security group referencing across peered VPCs (2022)
+- 💰 Public IPv4 address charges announced — $0.005/hr per address (2022, effective Feb 2024)
+- 🆕 VPC Lattice GA with built-in auth and observability (2023)
+- 🔄 VPC Block Public Access — account-level internet traffic control (2024)
+- 🆕 VPC Lattice adds TCP/TLS support (2024)
+- 🆕 Security group VPC associations — share SGs across VPCs (2024)
+- 🔄 VPC IPAM adds automatic CIDR conflict detection (2025)
 
-**CloudWatch**
-- 🆕 CloudWatch Metrics Insights — SQL-like query language for metrics
-- 🆕 CloudWatch Evidently — feature flags and A/B testing
-- 🆕 CloudWatch RUM (Real User Monitoring)
+### S3
 
-**EC2**
-- 🆕 Graviton3 processors announced
-- 🆕 M6i, C6i, R6i instances (Intel Ice Lake)
-- 🆕 EC2 Auto Scaling warm pools — pre-initialized instances for faster scaling
-- 🔄 EBS gp3 volumes now default (replacing gp2 as recommended)
+- 🔄 S3 Object Ownership — bucket owner enforces ownership, disabling ACLs (2021)
+- 🆕 S3 Intelligent-Tiering adds Archive and Deep Archive tiers (2021)
+- 🆕 S3 Multi-Region Access Points (2021)
+- 🔄 Block Public Access becomes default on new buckets (2022)
+- 🔄 ACLs disabled by default on new buckets (2022)
+- 🆕 S3 Glacier Instant Retrieval storage class (2022)
+- 💰 No charge for DELETE and lifecycle transition requests (2022)
+- 🆕 S3 Express One Zone — single-digit ms latency storage class (2023)
+- 🆕 Mountpoint for S3 — mount buckets as local file systems (2023)
+- 🔄 Default encryption switches to SSE-S3 for all new objects (2023)
+- 🆕 S3 Access Grants — map permissions to corporate directory identities (2023)
+- 🆕 S3 Tables — managed Apache Iceberg tables in S3 (2024)
+- 🆕 S3 Metadata — automatic metadata extraction (2024)
+- 🆕 Conditional writes (if-none-match) — prevents overwrites without locking (2024)
+- 🔄 S3 Express One Zone expands to additional regions (2025)
+- 🆕 S3 Tables adds automated compaction and snapshot management (2025)
 
-**Route 53 / ELB**
-- 🆕 ALB supports TLS 1.3
-- 🆕 NLB supports IPv6 targets
-- 🆕 Route 53 Resolver DNS Firewall
+### CloudWatch
 
----
+- 🆕 Metrics Insights — SQL-like query language for metrics (2021)
+- 🆕 CloudWatch Evidently — feature flags and A/B testing (2021)
+- 🆕 CloudWatch RUM (Real User Monitoring) (2021)
+- 🆕 Cross-account observability (2022)
+- 🆕 Application Signals — auto-discover and monitor app health with SLOs (2023)
+- 🆕 Logs anomaly detection (2023)
+- 💰 Infrequent Access log class at 50% lower ingestion cost (2023)
+- 🆕 Database Insights — unified monitoring for RDS/Aurora (2024)
+- 🆕 Natural language query for Logs Insights (2024)
+- 🔄 Alarms support account-level suppression windows (2024)
+- 🆕 CloudWatch investigator — AI-assisted root cause analysis (2025)
+- 🔄 Application Signals expands to EKS and ECS workloads (2025)
 
-### 2022
+### EC2
 
-**IAM**
-- 🆕 IAM Roles Anywhere — use X.509 certificates to get temporary AWS credentials from on-premises workloads (no more long-lived keys for hybrid setups)
-- 🆕 IAM Identity Center (rebranded from AWS SSO) — centralized workforce access
-- 🔄 IAM Access Analyzer adds custom policy checks against security standards
+- 🆕 Graviton3 processors announced (2021)
+- 🆕 Auto Scaling warm pools — pre-initialized instances (2021)
+- 🔄 EBS gp3 becomes recommended default over gp2 (2021)
+- 🆕 Graviton3 instances GA — C7g, M7g, R7g (2022)
+- 🆕 Instance Connect Endpoint — SSH/RDP without public IPs or bastions (2022)
+- ⚠️ EC2-Classic fully retired (2022)
+- 🆕 M7i, C7i (Intel Sapphire Rapids), M7a, C7a (AMD Genoa) (2023)
+- 💰 Public IPv4 charge active: $0.005/hr per address (2024)
+- 🆕 Graviton4 instances GA — M8g, C8g, R8g, X8g (2024)
+- 🆕 P5 instances (NVIDIA H100) for ML training (2024)
+- 🆕 Capacity Blocks for ML — reserve GPU instances for defined windows (2024)
+- 🆕 P5e instances (NVIDIA H200) (2025)
+- 🆕 Trn2 instances (AWS Trainium2) for cost-efficient ML training (2025)
 
-**VPC**
-- 🆕 VPC Lattice (preview) — application-layer networking across VPCs and accounts
-- 🆕 Verified Access — zero-trust access to applications without VPN
-- 🔄 Security group referencing across peered VPCs now supported
-- 💰 IPv4 public address charges announced (effective Feb 2024)
+### Route 53 / ELB
 
-**S3**
-- 🔄 S3 Block Public Access becomes default on all new buckets
-- 🔄 ACLs disabled by default on new buckets (Object Ownership = BucketOwnerEnforced)
-- 🆕 S3 Object Lambda — transform data on retrieval
-- 🆕 S3 Glacier Instant Retrieval storage class
-- 💰 No charge for S3 DELETE and lifecycle transition requests
-
-**CloudWatch**
-- 🆕 CloudWatch cross-account observability — centralized monitoring across accounts
-- 🆕 CloudWatch Log Insights adds pattern analysis
-- 🔄 Lambda Insights now built into CloudWatch (no separate install)
-
-**EC2**
-- 🆕 Graviton3-based instances GA (C7g, M7g, R7g)
-- 🆕 Hpc6a instances for high-performance computing
-- 🆕 EC2 Instance Connect Endpoint — SSH/RDP without public IPs or bastion hosts
-- ⚠️ EC2-Classic fully retired
-
-**Route 53 / ELB**
-- 🆕 ALB weighted target groups — native canary deployments
-- 🆕 Route 53 HTTPS health checks with SNI support
-- 🆕 NLB supports security groups (finally)
-
----
-
-### 2023
-
-**IAM**
-- 🆕 IAM Access Analyzer adds unused access findings — identifies permissions granted but never used
-- 🔄 Root user sessions can now be centrally managed from the org management account
-- 🆕 IAM policy recommendations based on Access Analyzer findings
-
-**VPC**
-- 🆕 VPC Lattice GA — service-to-service networking with built-in auth, observability
-- 🔄 VPC peering supports larger CIDR blocks
-- 🆕 Subnet-level DHCP options
-
-**S3**
-- 🆕 S3 Express One Zone — single-digit millisecond latency storage class (for compute-adjacent workloads)
-- 🆕 Mountpoint for S3 — mount S3 buckets as local file systems on Linux
-- 🔄 S3 default encryption switches to SSE-S3 (all new objects encrypted automatically)
-- 🆕 S3 Access Grants — map S3 permissions to corporate directory identities
-
-**CloudWatch**
-- 🆕 CloudWatch Application Signals — auto-discover and monitor application health (SLOs)
-- 🆕 CloudWatch Logs anomaly detection
-- 🔄 Log class options: Standard and Infrequent Access (cheaper for logs you rarely query)
-- 💰 Infrequent Access log class at 50% lower ingestion cost
-
-**EC2**
-- 🆕 Graviton4-based instances announced (R8g)
-- 🆕 M7i, C7i instances (Intel Sapphire Rapids)
-- 🆕 M7a, C7a instances (AMD Genoa)
-- 💰 Public IPv4 address charge: $0.005/hr per address (effective Feb 2024)
-- 🆕 EC2 Instance Connect Endpoint GA
-
-**Route 53 / ELB**
-- 🆕 ALB mutual TLS (mTLS) support
-- 🆕 Route 53 Profiles — share DNS configurations across VPCs and accounts
-- 🔄 ALB supports HTTP/2 gRPC health checks
+- 🆕 ALB supports TLS 1.3 (2021)
+- 🆕 Route 53 Resolver DNS Firewall (2021)
+- 🆕 ALB weighted target groups — native canary deployments (2022)
+- 🆕 NLB supports security groups (2022)
+- 🆕 ALB mutual TLS (mTLS) support (2023)
+- 🆕 Route 53 Profiles — share DNS configs across VPCs and accounts (2023)
+- 🔄 NLB cross-zone load balancing configurable per target group (2024)
+- 🔄 ALB improved connection draining controls (2025)
 
 ---
 
-### 2024
+## Tier 2 — Architecture Dependent
 
-**IAM**
-- 🆕 Resource control policies (RCPs) — like SCPs but for resources instead of identities
-- 🔄 IAM Access Analyzer adds public and cross-account access previews before deployment
-- 🆕 Declarative policies for enforcing baseline configs across org (e.g., block public AMIs)
+### RDS / Aurora
 
-**VPC**
-- 🔄 VPC Block Public Access — account-level control to block internet traffic to/from VPCs
-- 🆕 VPC Lattice adds TCP/TLS support (not just HTTP anymore)
-- 💰 Public IPv4 charges now active ($0.005/hr per address — affects ELBs, NAT GWs, EC2)
-- 🆕 Security group VPC associations — share security groups across VPCs
+- 🆕 RDS Custom — managed RDS with OS-level access (2021)
+- 🔄 RDS Proxy GA for PostgreSQL and MySQL (2021)
+- 🆕 Aurora Serverless v2 GA — sub-second scaling in 0.5 ACU increments (2022)
+- 🆕 RDS Blue/Green Deployments — managed switchover for upgrades (2022)
+- ⚠️ Aurora Serverless v1 enters deprecation path (2022)
+- 🆕 Aurora Limitless Database (preview) — horizontal write scaling (2023)
+- 🆕 Aurora I/O-Optimized — no per-I/O charges (2023)
+- 🔄 Blue/Green Deployments supports Aurora (2023)
+- 💰 RDS Extended Support charges for past-EOL engine versions (2024)
+- 🆕 Aurora Limitless Database GA (2024)
+- 🆕 RDS auto-manages credentials via Secrets Manager at creation (2024)
+- 🔄 Aurora Serverless v2 minimum ACU lowered to 0 — scale to zero (2025)
 
-**S3**
-- 🆕 S3 Tables — managed Apache Iceberg tables directly in S3 (analytics-native)
-- 🆕 S3 Metadata — automatic metadata extraction on objects
-- 🔄 S3 Access Grants integrates with IAM Identity Center
-- 🆕 Conditional writes on S3 (if-none-match) — prevents overwrites without external locking
+### Lambda
 
-**CloudWatch**
-- 🆕 CloudWatch Database Insights — unified monitoring for RDS/Aurora
-- 🆕 CloudWatch natural language query for Logs Insights
-- 🔄 CloudWatch alarms support account-level suppression windows (maintenance mode)
+- 🆕 Container image support up to 10 GB (2021)
+- 💰 Billing granularity changes to 1ms (from 100ms) (2021)
+- 🆕 Graviton2 (arm64) support (2021)
+- 🆕 SnapStart (Java) — near-zero cold starts (2022)
+- 🆕 Function URLs — built-in HTTPS endpoint without API Gateway (2022)
+- 🔄 Max memory increases to 10 GB (2022)
+- 🔄 Response streaming for Node.js (2023)
+- 🆕 SnapStart expands to Python and .NET (2023)
+- ⚠️ Python 3.7, Node.js 14 runtimes deprecated (2023)
+- 🆕 12x faster function scaling (2024)
+- 🆕 SnapStart for ARM64/Graviton (2024)
+- 🆕 Python 3.13, Node.js 22 support (2024)
+- 🆕 Ruby 3.4 support (2025)
 
-**EC2**
-- 🆕 Graviton4 instances GA (M8g, C8g, R8g, X8g)
-- 🆕 P5 instances (NVIDIA H100) for ML training
-- 🆕 Capacity Blocks for ML — reserve GPU instances for defined time windows
-- 🔄 Default EBS volume type is gp3 in console and most IaC tools
+### ECS / EKS
 
-**Route 53 / ELB**
-- 🆕 ALB advanced request routing with header-based conditions
-- 🆕 Route 53 Resolver on Outposts
-- 🔄 NLB cross-zone load balancing now configurable per target group
+- 🆕 ECS Anywhere — run ECS tasks on-premises (2021)
+- 🆕 EKS Anywhere — run EKS on your own infrastructure (2021)
+- 🔄 Fargate supports ephemeral storage up to 200 GB (2021)
+- 🆕 ECS Service Connect — built-in service mesh (2022)
+- 🆕 EKS Pod Identity (preview) (2022)
+- 🆕 EKS Pod Identity GA (2023)
+- 🆕 EKS Auto Mode — AWS manages nodes, scaling, and upgrades entirely (2024)
+- 🆕 ECS support for EBS volume attachments to tasks (2024)
+- 🔄 EKS extended K8s version support (14 → 26 months) (2024)
+- 💰 EKS extended version support costs extra after standard window (2024)
+- 🔄 EKS Auto Mode expands to additional regions (2025)
 
----
+### Secrets Manager
 
-### 2025 (through March)
+- 🆕 Cross-region secret replication (2021)
+- 🆕 Batch retrieval of secrets (BatchGetSecretValue) (2022)
+- 💰 Pricing simplified — per-secret/month + per-10K API calls (2022)
+- 🆕 Integration with AWS Config for compliance tracking (2023)
+- 🔄 Improved cross-account sharing via resource policies (2024)
 
-**IAM**
-- 🔄 IAM Access Analyzer recommendations now integrated into policy editor in console
-- 🆕 Expanded support for resource control policies across more service types
+### ACM
 
-**VPC**
-- 🆕 VPC Lattice multi-protocol support improvements
-- 🔄 VPC IPAM adds automatic conflict detection for overlapping CIDRs
+- 🆕 Private CA short-lived certificates (2021)
+- 🔄 Supports ECDSA P-384 and RSA 3072/4096 key types (2022)
+- 🔄 Renewal window extends to 90 days before expiry (2023)
+- 🔄 Certificates default to 90-day validity (2024)
+- 🆕 Automated renewal for imported certificates with DNS validation (2024)
 
-**S3**
-- 🔄 S3 Express One Zone expands to additional regions
-- 🆕 S3 Tables adds automated compaction and snapshot management
+### KMS
 
-**CloudWatch**
-- 🆕 CloudWatch investigator — AI-assisted root cause analysis
-- 🔄 Application Signals expands to EKS and ECS workloads
-
-**EC2**
-- 🆕 Graviton4 instances expand to more sizes and regions
-- 🆕 P5e instances (NVIDIA H200) for next-gen ML workloads
-- 🆕 Trn2 instances (AWS Trainium2) for cost-efficient ML training
-
-**Route 53 / ELB**
-- 🔄 ALB adds improved connection draining controls
-- 🆕 Route 53 Profiles expands to cross-account sharing
-
----
-
-## Tier 2 — Architecture Dependent (RDS, Lambda, ECS/EKS, Secrets Manager, ACM, KMS)
-
-### 2021
-
-**RDS**
-- 🆕 RDS Custom — managed RDS with OS-level access (for legacy apps needing custom configs)
-- 🆕 Aurora Serverless v2 (preview) — scales to fractional ACUs
-- 🔄 RDS Proxy GA for PostgreSQL and MySQL
-
-**Lambda**
-- 🆕 Lambda container image support (up to 10 GB images)
-- 🆕 Lambda extensions GA — integrate monitoring tools into the runtime lifecycle
-- 🔄 Lambda billing granularity changes to 1ms (from 100ms)
-- 🆕 Graviton2 support for Lambda (arm64)
-
-**ECS / EKS**
-- 🆕 ECS Anywhere — run ECS tasks on on-premises servers
-- 🆕 EKS Anywhere — run EKS on your own infrastructure
-- 🆕 EKS managed addons expand (CoreDNS, kube-proxy, VPC CNI)
-- 🔄 Fargate supports ephemeral storage up to 200 GB
-
-**Secrets Manager**
-- 🆕 Automatic rotation for additional database types
-- 🔄 Cross-region secret replication
-
-**ACM**
-- 🔄 ACM certificates auto-renew up to 60 days before expiry
-- 🆕 ACM Private CA short-lived certificates
-
-**KMS**
-- 🆕 Multi-Region KMS keys — same key material replicated across regions
-- 🆕 HMAC key support
+- 🆕 Multi-Region KMS keys (2021)
+- 🆕 HMAC key support (2021)
+- 🆕 External key store (XKS) — use keys from your own HSM (2022)
+- 🆕 Automatic key rotation now configurable: 90 days to 7 years (2023)
+- 🔄 Key deletion waiting period can be set to 7 days (from 30) (2023)
+- 🆕 ML-KEM post-quantum key encapsulation support (2024)
+- 🔄 Post-quantum cryptography expands to additional operations (2025)
 
 ---
 
-### 2022
-
-**RDS**
-- 🆕 Aurora Serverless v2 GA — scales in 0.5 ACU increments, sub-second scaling
-- 🆕 RDS Blue/Green Deployments — managed switchover for major version upgrades
-- 🔄 RDS Optimized Reads (instance store caching)
-- ⚠️ Aurora Serverless v1 enters deprecation path
-
-**Lambda**
-- 🆕 Lambda SnapStart (Java) — near-zero cold starts via snapshot restore
-- 🆕 Lambda function URLs — built-in HTTPS endpoint without API Gateway
-- 🔄 Lambda max memory increases to 10 GB
-- 🆕 Lambda supports Node.js 18, Python 3.10
-
-**ECS / EKS**
-- 🆕 EKS Pod Identity (preview) — simpler alternative to IRSA
-- 🆕 ECS Service Connect — built-in service mesh
-- 🔄 Fargate supports Windows containers
-- 🆕 EKS add-ons support ADOT (AWS Distro for OpenTelemetry)
-
-**Secrets Manager**
-- 💰 Pricing simplified — per-secret per-month + per-10K API calls
-- 🆕 Batch retrieval of secrets (BatchGetSecretValue)
-
-**ACM**
-- 🔄 ACM supports ECDSA P-384 and RSA 3072/4096 key types
-- 🆕 ACM integration with CloudFormation improves (faster validation)
-
-**KMS**
-- 🆕 External key store (XKS) — use keys stored outside AWS (in your HSM)
-- 🔄 KMS key policies support ABAC (attribute-based access control)
-
----
-
-### 2023
-
-**RDS**
-- 🆕 Aurora Limitless Database (preview) — horizontal write scaling beyond single-writer
-- 🆕 RDS Extended Support — pay to keep older engine versions past EOL
-- 🔄 RDS Blue/Green Deployments supports Aurora
-- 🆕 Aurora I/O-Optimized — predictable pricing for I/O-heavy workloads (no per-I/O charges)
-
-**Lambda**
-- 🆕 Lambda supports Python 3.12, Node.js 20, Java 21
-- 🔄 Lambda response streaming for Node.js — send partial responses as they're ready
-- 🆕 Lambda SnapStart expands to Python and .NET
-- ⚠️ Python 3.7, Node.js 14 runtimes deprecated
-
-**ECS / EKS**
-- 🆕 EKS Pod Identity GA — simplified IAM for pods (see your IAM guide)
-- 🆕 ECS auto-scaling improvements with target tracking on custom metrics
-- 🆕 EKS supports Kubernetes 1.28, 1.29
-- 🔄 Fargate ephemeral storage increases to 200 GB default
-
-**Secrets Manager**
-- 🆕 Secrets Manager integrates with AWS Config for compliance tracking
-- 🔄 Rotation window scheduling improvements
-
-**ACM**
-- 🔄 ACM certificate renewal window extends to 90 days before expiry
-- 🆕 ACM supports importing certificates with longer chains
-
-**KMS**
-- 🆕 KMS automatic key rotation now configurable (90 days to 7 years, was fixed at 1 year)
-- 🔄 KMS key deletion waiting period can be set to 7 days (from 30)
-
----
-
-### 2024
-
-**RDS**
-- 🆕 Aurora Limitless Database GA
-- 🆕 Aurora PostgreSQL Optimized Reads with tiered caching
-- 🔄 RDS Extended Support pricing kicks in for older engine versions
-- 💰 RDS Extended Support: additional charges for running past-EOL versions
-- 🆕 RDS integration with Secrets Manager for automatic credential management at creation
-
-**Lambda**
-- 🆕 Lambda supports Python 3.13, Node.js 22
-- 🆕 Lambda SnapStart for ARM64 (Graviton)
-- 🔄 Lambda max timeout remains 15 minutes but recursive loop detection improves
-- 🆕 Lambda scales faster — up to 12x faster function scaling
-
-**ECS / EKS**
-- 🆕 EKS Auto Mode — AWS manages node groups, scaling, and upgrades entirely
-- 🆕 ECS support for EBS volume attachments to tasks
-- 🔄 EKS extended support for Kubernetes versions (14 months → 26 months)
-- 💰 EKS extended K8s version support costs extra after standard support ends
-
-**Secrets Manager**
-- 🆕 Secrets Manager supports zero-ETL integration with Redshift
-- 🔄 Improved cross-account secret sharing via resource policies
-
-**ACM**
-- 🔄 ACM certificates now default to 90-day validity (following industry trend)
-- 🆕 ACM supports automated renewal for imported certificates (if DNS validation is set up)
-
-**KMS**
-- 🆕 KMS supports ML-KEM post-quantum key encapsulation (preparing for quantum computing)
-- 🔄 KMS key policies now support service-linked roles more granularly
-
----
-
-### 2025 (through March)
-
-**RDS**
-- 🔄 Aurora Serverless v2 minimum ACU lowered to 0 (scale to zero, cold start on first connection)
-- 🆕 RDS Blue/Green Deployments supports additional engine versions
-
-**Lambda**
-- 🔄 Lambda SnapStart improvements reduce restore latency further
-- 🆕 Lambda adds support for Ruby 3.4
-
-**ECS / EKS**
-- 🔄 EKS Auto Mode expands to additional regions
-- 🆕 ECS adds native support for service discovery via Cloud Map improvements
-
-**Secrets Manager**
-- 🔄 Rotation Lambda templates updated for latest runtime versions
-
-**ACM**
-- 🔄 ACM renewal automation improvements for multi-region certificates
-
-**KMS**
-- 🔄 Post-quantum cryptography support expands to additional key operations
-
----
-
-## Tier 3 — Use-Case Specific (SQS, SNS, DynamoDB, CloudFront, API Gateway, EventBridge)
-
-### 2021
-
-**SQS**
-- 🆕 SQS supports high-throughput FIFO queues (up to 3,000 msg/sec with batching)
-- 🔄 Dead-letter queue redrive — move messages back to source queue from console
-
-**SNS**
-- 🆕 SNS FIFO topics — ordered, deduplicated pub/sub
-- 🆕 SNS message filtering supports nested attributes
-
-**DynamoDB**
-- 🆕 PartiQL support — SQL-compatible query language for DynamoDB
-- 🆕 Kinesis Data Streams integration for change data capture (alternative to DynamoDB Streams)
-- 💰 On-demand pricing reduced by up to 50% in some regions
-
-**CloudFront**
-- 🆕 CloudFront Functions — lightweight edge compute (cheaper/faster than Lambda@Edge for simple transforms)
-- 🆕 Response headers policies — add security headers without code
-- 🔄 Origin Shield — centralized caching layer to reduce origin load
-
-**API Gateway**
-- 🆕 HTTP APIs support mutual TLS
-- 🔄 WebSocket API improvements for connection management
-- 💰 HTTP APIs remain ~70% cheaper than REST APIs
-
-**EventBridge**
-- 🆕 EventBridge Schema Registry — auto-discover event schemas
-- 🆕 EventBridge Pipes — point-to-point integrations with filtering and enrichment
-- 🔄 Archive and replay events for debugging
-
----
-
-### 2022
-
-**SQS**
-- 🔄 SQS message throughput increases for standard queues
-- 🆕 SQS supports attribute-based access control (ABAC)
-
-**SNS**
-- 🆕 SNS payload-based message filtering (filter on message body, not just attributes)
-- 🔄 SNS delivery retries become more configurable
-
-**DynamoDB**
-- 🆕 DynamoDB table import from S3 — bulk load without custom code
-- 🆕 DynamoDB Contributor Insights included in standard metrics
-- 🔄 DynamoDB Standard-IA table class — lower storage cost for infrequently accessed tables
-
-**CloudFront**
-- 🆕 CloudFront Origin Access Control (OAC) — replaces Origin Access Identity (OAI) for S3
-- ⚠️ OAI still works but OAC is recommended for new setups
-- 🆕 CloudFront continuous deployment — canary releases for distributions
-
-**API Gateway**
-- 🔄 API Gateway supports private APIs with VPC Lattice integration
-- 🆕 Improved request validation and transformation templates
-
-**EventBridge**
-- 🆕 EventBridge Pipes GA — connect sources to targets with optional filtering/enrichment
-- 🆕 EventBridge Scheduler — cron and one-time scheduled events (replaces CloudWatch Events rules)
-- 🔄 EventBridge global endpoints — automatic failover across regions
-
----
-
-### 2023
-
-**SQS**
-- 🔄 SQS dead-letter queue redrive now available via API (not just console)
-- 🆕 SQS supports server-side encryption with SQS-managed keys by default
-
-**SNS**
-- 🔄 SNS message archiving and replay (via Kinesis Data Firehose)
-- 🆕 SNS supports delivery to Amazon Q endpoints
-
-**DynamoDB**
-- 🆕 DynamoDB zero-ETL integration with Redshift — real-time analytics without pipelines
-- 🆕 DynamoDB resource-based policies — attach policies directly to tables
-- 🔄 DynamoDB on-demand capacity scales faster (no more throttling on sudden spikes)
-
-**CloudFront**
-- 🆕 CloudFront KeyValueStore — low-latency key-value data at the edge
-- 🔄 CloudFront Functions adds support for async event handling
-- 🆕 CloudFront supports post-quantum TLS (FIPS 140-3)
-
-**API Gateway**
-- 🔄 API Gateway improves OpenAPI import/export
-- 🆕 Enhanced observability with CloudWatch detailed metrics per route
-
-**EventBridge**
-- 🆕 EventBridge Pipes adds more enrichment targets
-- 🔄 EventBridge event bus throughput increases
-- 🆕 EventBridge integration with Partner SaaS events expands
-
----
-
-### 2024
-
-**SQS**
-- 🔄 SQS FIFO throughput increases (up to 70,000 msg/sec with batching)
-- 🆕 SQS supports dead-letter queue redrive policies with more granular controls
-
-**SNS**
-- 🆕 SNS supports in-place message encryption with customer-managed KMS keys
-- 🔄 SNS FIFO topics throughput improvements
-
-**DynamoDB**
-- 🆕 DynamoDB warm throughput — pre-warm tables for predictable traffic spikes
-- 🆕 DynamoDB multi-Region strong consistency (preview)
-- 🔄 Global tables v2 improvements for conflict resolution
-
-**CloudFront**
-- 🆕 CloudFront VPC origins — serve content from private ALBs/NLBs without public IPs
-- 🔄 CloudFront grpc support via HTTP/2 origins
-- 🆕 CloudFront embedded points of presence expand
-
-**API Gateway**
-- 🔄 API Gateway supports larger payload sizes for WebSocket APIs
-- 🆕 Improved integration with VPC Lattice for private API patterns
-
-**EventBridge**
-- 🆕 EventBridge adds support for partner event sources from more SaaS providers
-- 🔄 EventBridge Scheduler adds flexible time windows for execution
-
----
-
-### 2025 (through March)
-
-**SQS**
-- 🔄 SQS encryption with SQS-managed keys becomes default for all new queues
-
-**SNS**
-- 🔄 SNS delivery logging improvements for debugging failed deliveries
-
-**DynamoDB**
-- 🔄 DynamoDB zero-ETL expands to additional analytics services
-- 🆕 DynamoDB warm throughput GA
-
-**CloudFront**
-- 🔄 CloudFront VPC origins expands to additional origin types
-- 🆕 CloudFront anycast static IPs — fixed IPs for allowlisting
-
-**API Gateway**
-- 🔄 API Gateway performance improvements for HTTP APIs
-
-**EventBridge**
-- 🔄 EventBridge Pipes adds additional source and target integrations
+## Tier 3 — Use-Case Specific
+
+### SQS
+
+- 🆕 High-throughput FIFO queues — up to 3,000 msg/sec with batching (2021)
+- 🔄 Dead-letter queue redrive from console (2021)
+- 🔄 DLQ redrive available via API (2023)
+- 🔄 Default encryption with SQS-managed keys for new queues (2023)
+- 🔄 FIFO throughput increases to 70,000 msg/sec with batching (2024)
+- 🔄 SQS-managed key encryption becomes default for all new queues (2025)
+
+### SNS
+
+- 🆕 FIFO topics — ordered, deduplicated pub/sub (2021)
+- 🆕 Payload-based message filtering (filter on body, not just attributes) (2022)
+- 🔄 Message archiving and replay via Kinesis Data Firehose (2023)
+- 🆕 In-place encryption with customer-managed KMS keys (2024)
+- 🔄 Delivery logging improvements for debugging (2025)
+
+### DynamoDB
+
+- 🆕 PartiQL — SQL-compatible query language (2021)
+- 🆕 Kinesis Data Streams integration for change data capture (2021)
+- 💰 On-demand pricing reduced up to 50% in some regions (2021)
+- 🆕 Table import from S3 — bulk load without custom code (2022)
+- 🔄 Standard-IA table class — lower storage cost for cold tables (2022)
+- 🆕 Zero-ETL integration with Redshift (2023)
+- 🆕 Resource-based policies — attach policies directly to tables (2023)
+- 🔄 On-demand capacity scales faster, less throttling on spikes (2023)
+- 🆕 Warm throughput — pre-warm tables for predictable spikes (2024)
+- 🆕 Multi-Region strong consistency (preview) (2024)
+- 🆕 Warm throughput GA (2025)
+
+### CloudFront
+
+- 🆕 CloudFront Functions — lightweight edge compute (2021)
+- 🆕 Response headers policies — security headers without code (2021)
+- 🆕 Origin Access Control (OAC) replaces OAI for S3 origins (2022)
+- 🆕 Continuous deployment — canary releases for distributions (2022)
+- ⚠️ OAI still works but OAC recommended for new setups (2022)
+- 🆕 KeyValueStore — low-latency key-value data at the edge (2023)
+- 🆕 Post-quantum TLS support (2023)
+- 🆕 VPC origins — serve from private ALBs/NLBs without public IPs (2024)
+- 🆕 Anycast static IPs for allowlisting (2025)
+
+### API Gateway
+
+- 🆕 HTTP APIs support mutual TLS (2021)
+- 💰 HTTP APIs remain ~70% cheaper than REST APIs (2021)
+- 🔄 Private APIs with VPC Lattice integration (2022)
+- 🔄 Improved OpenAPI import/export (2023)
+- 🆕 Enhanced per-route CloudWatch metrics (2023)
+- 🔄 Larger payload sizes for WebSocket APIs (2024)
+- 🔄 Performance improvements for HTTP APIs (2025)
+
+### EventBridge
+
+- 🆕 Schema Registry — auto-discover event schemas (2021)
+- 🔄 Archive and replay events for debugging (2021)
+- 🆕 EventBridge Pipes GA — point-to-point integrations with filtering (2022)
+- 🆕 EventBridge Scheduler — replaces CloudWatch Events for cron/one-time schedules (2022)
+- 🔄 Global endpoints — automatic failover across regions (2022)
+- 🆕 Pipes adds more enrichment targets (2023)
+- 🔄 Scheduler adds flexible time windows for execution (2024)
 
 ---
 
@@ -513,7 +253,7 @@
 
 <!-- 
   Weekly update template:
-  1. Add new entries under the current year section for each tier
+  1. Add new entries at the bottom of the relevant service section
   2. Add a row to the Update Log table
   3. Update "Last updated" date at the top
 -->
