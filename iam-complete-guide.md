@@ -362,6 +362,38 @@ aws eks create-pod-identity-association \
 
 If you're starting fresh, prefer Pod Identity. If you have existing IRSA setups, they continue to work fine.
 
+### Migrating from IRSA to Pod Identity
+
+IRSA and Pod Identity can coexist on the same cluster. You don't need a big-bang migration. The recommended approach:
+
+1. **Install the Pod Identity Agent addon** (if not already present):
+   ```bash
+   aws eks create-addon \
+     --cluster-name my-cluster \
+     --addon-name eks-pod-identity-agent
+   ```
+
+2. **Create a new trust policy** for the existing role (or create a new role). Replace the OIDC-based trust policy with the simpler `pods.eks.amazonaws.com` one shown above.
+
+3. **Create the Pod Identity Association:**
+   ```bash
+   aws eks create-pod-identity-association \
+     --cluster-name my-cluster \
+     --namespace myapp-ns \
+     --service-account myapp-sa \
+     --role-arn arn:aws:iam::111122223333:role/myapp-role
+   ```
+
+4. **Remove the `eks.amazonaws.com/role-arn` annotation** from the ServiceAccount. If both IRSA and Pod Identity are configured for the same SA, Pod Identity takes precedence — but leaving both is confusing. Clean it up.
+
+5. **Restart the pods** so they pick up the new credential source.
+
+6. **After verifying everything works**, remove the old OIDC conditions from the trust policy (or delete the old role if you created a new one).
+
+**What can go wrong during migration:**
+- If you update the trust policy but forget to create the Pod Identity Association, the pods lose access entirely — the old IRSA path is gone and the new path isn't set up yet. Always create the association first.
+- Pod Identity requires the agent addon running as a DaemonSet. If a node doesn't have the agent pod running, pods on that node silently fall back to the node role (not IRSA). Check with `kubectl get ds -n kube-system eks-pod-identity-agent`.
+
 ---
 
 ## 7. Practical Example: EKS + RDS + Secrets Manager
@@ -406,8 +438,9 @@ Every step below maps to a specific IAM concept from the earlier sections.
 
 The EKS **control plane** itself needs an IAM role to manage AWS resources (ENIs, security groups, etc.) on your behalf.
 
+Trust policy — lets the EKS service assume this role:
+
 ```json
-// Trust policy — lets the EKS service assume this role
 {
   "Version": "2012-10-17",
   "Statement": [
@@ -442,8 +475,9 @@ aws iam attach-role-policy \
 
 Worker nodes (EC2 instances) need their own role. This is the **baseline** permission every pod gets if you don't use IRSA/Pod Identity.
 
+Trust policy — lets EC2 assume this role:
+
 ```json
-// Trust policy — lets EC2 assume this role
 {
   "Version": "2012-10-17",
   "Statement": [
@@ -681,6 +715,48 @@ conn = psycopg2.connect(
 
 No access keys anywhere. The SDK's credential chain automatically discovers the IRSA token and calls `AssumeRoleWithWebIdentity` behind the scenes.
 
+### ⚠️ Token Expiration: The Silent Trap
+
+IRSA tokens are short-lived (default 24 hours, configurable down to 1 hour) and the kubelet rotates them automatically on disk. The AWS SDK handles this correctly — it re-reads the token file and refreshes credentials before they expire.
+
+**But** if your application does any of the following, you'll get mysterious "Access Denied" errors after the first token expires:
+
+- **Caching the credentials manually** instead of letting the SDK handle it. Don't do `creds = boto3.Session().get_credentials()` once at startup and reuse forever.
+- **Creating a single boto3 client at import time** in a long-running process. The client will refresh automatically, but if you extracted the raw credentials from it, those are stale.
+- **Using a non-AWS HTTP client** to call AWS APIs directly with credentials you fetched once.
+
+The fix is simple: let the SDK manage credentials. Create clients normally and don't cache raw access keys:
+
+```python
+# ✅ Correct — SDK refreshes credentials automatically
+def get_secret():
+    client = boto3.client("secretsmanager", region_name="eu-west-1")
+    return client.get_secret_value(SecretId="myapp/db-credentials")
+
+# ✅ Also correct — client-level caching is fine, SDK handles refresh internally
+secrets_client = boto3.client("secretsmanager", region_name="eu-west-1")
+def get_secret():
+    return secrets_client.get_secret_value(SecretId="myapp/db-credentials")
+
+# ❌ Wrong — raw credentials go stale
+session = boto3.Session()
+frozen_creds = session.get_credentials().get_frozen_credentials()
+# These will expire and never refresh
+```
+
+If you need to customize the token expiration (e.g., for compliance), set it on the ServiceAccount:
+
+```yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: myapp-sa
+  namespace: myapp
+  annotations:
+    eks.amazonaws.com/role-arn: arn:aws:iam::111122223333:role/myapp-secrets-role
+    eks.amazonaws.com/token-expiration: "3600"  # 1 hour, in seconds
+```
+
 ---
 
 ### Step 8: Network Security (Security Groups)
@@ -782,6 +858,13 @@ When something doesn't work, check in this order:
 
 2. **Does the trust policy's `Federated` ARN match exactly?**
    - Compare the OIDC provider ARN in IAM with the one in the trust policy.
+   - **Common gotcha: wrong cluster.** If you have multiple clusters (dev, staging, prod), each has a different OIDC issuer URL. A trust policy pointing to the dev cluster's OIDC provider will silently reject tokens from the staging cluster. The error is the same generic "Access Denied" — no hint about which side failed.
+   ```bash
+   # Verify which OIDC issuer your cluster actually uses
+   aws eks describe-cluster --name my-cluster \
+     --query "cluster.identity.oidc.issuer" --output text
+   # Then confirm it matches what's in the trust policy
+   ```
 
 3. **Do the `sub` and `aud` conditions match?**
    - Decode the JWT token from inside the pod:
@@ -789,11 +872,36 @@ When something doesn't work, check in this order:
    kubectl exec -it <pod> -n myapp -- cat /var/run/secrets/eks.amazonaws.com/serviceaccount/token | cut -d. -f2 | base64 -d 2>/dev/null | jq .
    ```
    - Check that `sub` matches `system:serviceaccount:<namespace>:<sa-name>` exactly.
+   - **This is case-sensitive and has no fuzzy matching.** A typo like `myapp-NS` vs `myapp-ns` or `my-app-sa` vs `myapp-sa` gives you the same "Access Denied" as a completely wrong trust policy. There's no partial match, no "did you mean..." — just denied.
 
 4. **Is the ServiceAccount annotation correct?**
    ```bash
    kubectl get sa myapp-sa -n myapp -o yaml
    ```
+
+### "It works in one cluster but not another"
+
+This is almost always an OIDC provider mismatch. Each EKS cluster has a unique OIDC issuer URL. Check:
+
+1. **The trust policy is pointing to the right cluster's OIDC provider:**
+   ```bash
+   # Get the OIDC issuer for EACH cluster
+   for cluster in dev staging prod; do
+     echo "$cluster: $(aws eks describe-cluster --name $cluster \
+       --query 'cluster.identity.oidc.issuer' --output text)"
+   done
+   ```
+   If the trust policy has the dev cluster's OIDC ID but you're running in staging, it will fail.
+
+2. **The OIDC provider is registered in IAM for that cluster:**
+   ```bash
+   aws iam list-open-id-connect-providers --output text
+   ```
+   You need one registered provider per cluster. If you created the staging cluster but forgot `eksctl utils associate-iam-oidc-provider --cluster staging --approve`, no pod in that cluster can assume any IRSA role.
+
+3. **The namespace and SA name are the same across clusters.** If dev uses `namespace: app` but staging uses `namespace: myapp`, the `sub` condition won't match.
+
+**Pro tip:** For multi-cluster setups, consider using `StringLike` instead of `StringEquals` in the trust policy condition with a pattern, or use separate roles per environment (cleaner and more auditable).
 
 ### "Access Denied" on the actual API call (GetSecretValue, etc.)
 
@@ -823,6 +931,24 @@ This is NOT an IAM issue. Check:
 1. Security groups — does the RDS SG allow inbound from the EKS node SG?
 2. Subnets — are EKS nodes and RDS in the same VPC or peered VPCs?
 3. RDS is in a private subnet with no public access? Make sure EKS nodes are in the same VPC.
+
+### "It worked for a while, then started failing"
+
+This is usually a token or credential expiration issue:
+
+1. **Is your app caching credentials manually?** The AWS SDK refreshes IRSA credentials automatically, but if your code extracted raw access keys at startup, they go stale after the session expires (default 1 hour for STS credentials). Let the SDK manage the credential lifecycle.
+
+2. **Was the ServiceAccount token rotated?** The kubelet rotates the projected token before it expires. Check the token's expiry from inside the pod:
+   ```bash
+   kubectl exec -it <pod> -n myapp -- cat /var/run/secrets/eks.amazonaws.com/serviceaccount/token | cut -d. -f2 | base64 -d 2>/dev/null | jq '.exp | todate'
+   ```
+
+3. **Did someone modify the trust policy or permissions policy?** Check CloudTrail for recent IAM changes:
+   ```bash
+   aws cloudtrail lookup-events \
+     --lookup-attributes AttributeKey=EventName,AttributeValue=UpdateAssumeRolePolicy \
+     --max-results 10
+   ```
 
 ### General IAM Debugging
 
